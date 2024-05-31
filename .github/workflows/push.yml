@@ -64,6 +64,9 @@ jobs:
             version_before=$(git show ${{ github.event.before }}:VERSION)
             echo "version_before=$version_before" >> $GITHUB_OUTPUT
           else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            version_before=$(git show ${{ github.event.before }}:VERSION)
+            echo "version_before=$version_before" >> $GITHUB_OUTPUT
             echo "VERSION file was not changed"
           fi
 
