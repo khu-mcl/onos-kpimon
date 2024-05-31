@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2024 Intel Corporation
+# Copyright 2024 Kyunghee University
 name: GitHub release and Docker images
 
 on:
@@ -10,15 +11,16 @@ on:
       - v*
 
 jobs:
-  push-images:  # 도커 이미지 푸시, omec-project/amf에는 master-latest와 GIT_SHA두가지 버전
+  push-images:  
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'khu-mcl'  # 레포지토리 user
+    if: github.repository_owner == 'onosproject'  
     env:
-      REGISTRY: docker.io # 도커 레지스트리: '/' 있으면 안됨
-      DOCKER_REGISTRY: docker.io
-      DOCKER_REPOSITORY: khusdran
+      REGISTRY: docker.io
+      DOCKER_REPOSITORY: onosproject/
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -26,29 +28,80 @@ jobs:
 
       - run: echo GIT_SHA_SHORT=$(git rev-parse --short HEAD) >> $GITHUB_ENV
 
-      - uses: docker/login-action@v3.1.0  # 도커 로그인, 해당 job이 끝날 때까지 로그인 세션 유지
+      - uses: docker/login-action@v3.1.0 
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image with tag latest
         env:
-          DOCKER_TAG: test
+          DOCKER_TAG: latest
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           git clone https://github.com/onosproject/build-tools.git build/build-tools
           make images
-          docker push ${{ env.DOCKER_REPOSITORY }}/onos-kpimon:${{ env.DOCKER_TAG }}
+          docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
+
+      - name: Get changes
+        id: version-file
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep VERSION; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            version_before=$(git show ${{ github.event.before }}:VERSION)
+            echo "version_before=$version_before" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION file was not changed"
+          fi
+
+      - name: Validate change in version file
+        id: version-change
+        if: steps.version-file.outputs.changed == 'true'       
+        run: |
+          version=$(cat VERSION)
+          version_before_full=${{ steps.version-file.outputs.version_before }}
+          version_before=${version_before_full::-4}
+          echo "version=$version"
+          echo "version_before=$version_before"
+          validate="^[0-9]+\.[0-9]+\.[0-9]+$"
+          if [[ $version =~ $validate ]]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$version" >> $GITHUB_OUTPUT
+          else
+            echo "Version change not for release"
+          fi
+          if [[ $version_before =~ $validate ]]; then
+            IFS='.' read -r major minor patch <<< "$version"
+            IFS='.' read -r major_b minor_b patch_b <<< "$version_before"
+            if [[ "$major" -ne "$major_b" ]] || [[ "$minor" -ne "$minor_b" ]]; then
+              version_branch="$major_b.$minor_b"
+              echo "release_branch=true" >> $GITHUB_OUTPUT
+              echo "version_branch=$version_branch" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Version change not for branch release"
+          fi
+
+      - name: Build and push Docker image with tag version
+        if: steps.version-change.outputs.changed == 'true'
+        env:
+          DOCKER_TAG: v${{ needs.tag-github.outputs.version }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          git clone https://github.com/onosproject/build-tools.git build/build-tools
+          make images
+          docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
+
 
   # CAUTION: Other actions depend on this name "tag-github"
   tag-github:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'khu-mcl'
+    if: github.repository_owner == 'onosproject'
     outputs:
-      changed: ${{ steps.version-change.outputs.changed }}  # VERSION 파일이 바꼈는지
-      version: ${{ steps.version-change.outputs.version }}  # VERSION 파일 내용
+      changed: ${{ steps.version-change.outputs.changed }} 
+      version: ${{ steps.version-change.outputs.version }}
       release_branch: ${{ steps.version-change.outputs.release_branch }}
       version_branch: ${{ steps.version-change.outputs.version_branch }}
     steps:
@@ -64,35 +117,12 @@ jobs:
             version_before=$(git show ${{ github.event.before }}:VERSION)
             echo "version_before=$version_before" >> $GITHUB_OUTPUT
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            version_before=$(git show ${{ github.event.before }}:VERSION)
-            echo "version_before=$version_before" >> $GITHUB_OUTPUT
             echo "VERSION file was not changed"
           fi
 
       - name: Validate change in version file
         id: version-change
-        if: steps.version-file.outputs.changed == 'true'
-        # changed: - VERSION 파일의 내용이 바뀌면 -> 'version-file.changed=true'
-        #          - 'version'이 숫자형식(e.g. 0.2.1)을 만족하면(validate) -> 'version-change.changed=true'
-        #          - `release-image`, `update-version` 실행
-        #          - test 30 참고
-        # version_before:'version'의 끝 네글자 제외한 형식 (version_before=${version_before_full::-4})
-        #                 e.g.: - 기존의 'version'이 0.1.0-dev
-        #                           - validate 충족 못함 -> 'version-change.changed=false'
-        #                           - test 31 참고
-        #                       - 바뀐 'version'이 0.1.0
-        #                           - 'version_before'가 validate 충족
-        #                           - 1.2.3 에서 major: 1, minor: 2, patch: 3
-        #                           - if [[ "$major" -ne "$major_b" ]] || [[ "$minor" -ne "$minor_b" ]] 만족 안함
-        #                             major 혹은 minor 변경 시 (patch 변경은 해당 안됨)
-        #                           - 'release_branch=false' -> 'branch-release' 실행 안함
-        #                           - test 32 참고
-        #                       - 바뀐 'version'이 0.2.0
-        #                           - validate 충족 -> 'version-change.changed=true' -> `release-image`, `update-version` 실행
-        #                           - 'version_before'가 validate 충족
-        #                           - 'release_branch=true' -> 'branch-release' 실행
-        #                           - test 34 참고
+        if: steps.version-file.outputs.changed == 'true'       
         run: |
           version=$(cat VERSION)
           version_before_full=${{ steps.version-file.outputs.version_before }}
@@ -124,7 +154,7 @@ jobs:
           curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.GH_ONOS_PAT }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/${{ github.repository }}/releases \
             -d '{
@@ -136,34 +166,33 @@ jobs:
               "generate_release_notes": true
               }'
 
-  release-image:
-    runs-on: ubuntu-latest
-    needs: tag-github # needs.tag-github.outputs를 쓰기 위해서는 선언 필요
-    if: needs.tag-github.outputs.changed == 'true'  # 'version-change.changed=true': VERSION 파일이 바꼈고, validate 만족 시
-    env:
-      REGISTRY: docker.io
-      DOCKER_REGISTRY: docker.io
-      DOCKER_REPOSITORY: khusdran
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-
-      - uses: docker/login-action@v3.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push release Docker image
-        env:
-          DOCKER_TAG: test-v${{ needs.tag-github.outputs.version }}
-        run: |
-          git clone https://github.com/onosproject/build-tools.git build/build-tools
-          make images
-          docker push ${{ env.DOCKER_REPOSITORY }}/onos-kpimon:${{ env.DOCKER_TAG }}
+  #release-image:
+  #  runs-on: ubuntu-latest
+  #  needs: tag-github 
+  #  if: needs.tag-github.outputs.changed == 'true'  
+  #  env:
+  #    REGISTRY: docker.io
+  #    DOCKER_REPOSITORY: onosproject/
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #
+  #    - uses: actions/setup-go@v5
+  #      with:
+  #        go-version-file: 'go.mod'
+  #
+  #    - uses: docker/login-action@v3.1.0
+  #      with:
+  #        registry: ${{ env.REGISTRY }}
+  #        username: ${{ secrets.DOCKER_USERNAME }}
+  #        password: ${{ secrets.DOCKER_PASSWORD }}
+  #
+  #    - name: Build and push release Docker image
+  #      env:
+  #        DOCKER_TAG: ${{ needs.tag-github.outputs.version }}
+  #      run: |
+  #        git clone https://github.com/onosproject/build-tools.git build/build-tools
+  #        make images
+  #        docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
 
   update-version:
     runs-on: ubuntu-latest
@@ -184,7 +213,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GH_ONOS_PAT }}
           commit-message: Update version
           committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
@@ -197,16 +226,16 @@ jobs:
           add-paths: |
             VERSION
 
-  branch-release:
-    runs-on: ubuntu-latest
-    needs: tag-github
-    if: (needs.tag-github.outputs.changed == 'true') && (needs.tag-github.outputs.release_branch == 'true')
-    env:
-      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: peterjgrainger/action-create-branch@v3.0.0
-        with:
-          branch: "rel-${{ needs.tag-github.outputs.version_branch }}"
-          sha: '${{ github.event.pull_request.head.sha }}'
+#  branch-release:
+#    runs-on: ubuntu-latest
+#    needs: tag-github
+#    if: (needs.tag-github.outputs.changed == 'true') && (needs.tag-github.outputs.release_branch == 'true')
+#    env:
+#      GITHUB_TOKEN: ${{ secrets.GH_ONOS_PAT }}
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - uses: peterjgrainger/action-create-branch@v3.0.0
+#        with:
+#          branch: "rel-${{ needs.tag-github.outputs.version_branch }}"
+#          sha: '${{ github.event.pull_request.head.sha }}'
