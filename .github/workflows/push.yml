@@ -90,7 +90,7 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          git clone https://github.com/onosproject/build-tools.git build/build-tools
+          #git clone https://github.com/onosproject/build-tools.git build/build-tools
           make images
           docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
 
