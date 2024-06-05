@@ -23,9 +23,9 @@ test: build deps linters license
 	go test -race github.com/onosproject/onos-kpimon/pkg/...
 	go test -race github.com/onosproject/onos-kpimon/cmd/...
 
-jenkins-test:  # @HELP run the unit tests and source code validation producing a junit style report for Jenkins
-jenkins-test: deps license linters
-	TEST_PACKAGES=github.com/onosproject/onos-kpimon/... ./build/build-tools/build/jenkins/make-unit
+#jenkins-test:  # @HELP run the unit tests and source code validation producing a junit style report for Jenkins
+#jenkins-test: deps license linters
+#	TEST_PACKAGES=github.com/onosproject/onos-kpimon/... ./build/build-tools/build/jenkins/make-unit
 
 buflint: #@HELP run the "buf check lint" command on the proto files in 'api'
 	docker run -it -v `pwd`:/go/src/github.com/onosproject/onos-kpimon \
@@ -67,13 +67,10 @@ all: build images
 publish: # @HELP publish version on github and dockerhub
 	./build/build-tools/publish-version ${VERSION} onosproject/onos-kpimon
 
-jenkins-publish: jenkins-tools # @HELP Jenkins calls this to publish artifacts
-	./build/bin/push-images
-	./build/build-tools/release-merge-commit
+#jenkins-publish: jenkins-tools # @HELP Jenkins calls this to publish artifacts
+#	./build/bin/push-images
+#	./build/build-tools/release-merge-commit
 
 clean:: # @HELP remove all the build artifacts
 	rm -rf ./build/_output ./vendor ./cmd/onos-kpimon/onos-kpimon ./cmd/onos/onos
 	go clean -testcache github.com/onosproject/onos-kpimon/...
-
-mcl_publish:
-	echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
