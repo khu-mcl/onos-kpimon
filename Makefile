@@ -58,7 +58,7 @@ images: # @HELP build all Docker images
 images: build onos-kpimon-docker
 
 docker-push:
-	docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
+	docker push ${DOCKER_REPOSITORY}onos-kpimon:${DOCKER_TAG}
 
 kind: # @HELP build Docker images and add them to the currently configured kind cluster
 kind: images
