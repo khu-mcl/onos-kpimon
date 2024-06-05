@@ -57,6 +57,9 @@ onos-kpimon-docker:
 images: # @HELP build all Docker images
 images: build onos-kpimon-docker
 
+docker-push:
+	docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
+
 kind: # @HELP build Docker images and add them to the currently configured kind cluster
 kind: images
 	@if [ "`kind get clusters`" = '' ]; then echo "no kind cluster found" && exit 1; fi

@@ -43,8 +43,7 @@ jobs:
         run: |
           git clone https://github.com/onosproject/build-tools.git build/build-tools
           make images
-          docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
-
+          make docker-push
 
   # CAUTION: Other actions depend on this name "tag-github"
   tag-github:
@@ -143,7 +142,7 @@ jobs:
         run: |
           git clone https://github.com/onosproject/build-tools.git build/build-tools
           make images
-          docker push ${{ env.DOCKER_REPOSITORY }}onos-kpimon:${{ env.DOCKER_TAG }}
+          make docker-push
 
   update-version:
     runs-on: ubuntu-latest
