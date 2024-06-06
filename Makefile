@@ -7,21 +7,22 @@ export GO111MODULE=on
 
 .PHONY: build
 
-ONOS_KPIMON_VERSION := ${DOCKER_TAG}
+TARGET := onos-kpimon
+TARGET_VERSION := ${DOCKER_TAG}
 ONOS_PROTOC_VERSION := v0.6.6
 BUF_VERSION := 0.27.1
 
 build: # @HELP build the Go binaries and run all validations (default)
 build:
-	GOPRIVATE="github.com/onosproject/*" go build -o build/_output/onos-kpimon ./cmd/onos-kpimon
+	GOPRIVATE="github.com/onosproject/*" go build -o build/_output/${TARGET} ./cmd/${TARGET}
 
 build-tools:=$(shell if [ ! -d "./build/build-tools" ]; then cd build && git clone https://github.com/onosproject/build-tools.git; fi)
 include ./build/build-tools/make/onf-common.mk
 
 #test: # @HELP run the unit tests and source code validation
 #test: build deps linters license
-#	go test -race github.com/onosproject/onos-kpimon/pkg/...
-#	go test -race github.com/onosproject/onos-kpimon/cmd/...
+#	go test -race github.com/onosproject/${TARGET}/pkg/...
+#	go test -race github.com/onosproject/${TARGET}/cmd/...
 
 #jenkins-test:  # @HELP run the unit tests and source code validation producing a junit style report for Jenkins
 #jenkins-test: deps license linters
@@ -47,33 +48,33 @@ include ./build/build-tools/make/onf-common.mk
 
 #integration-tests: helmit-kpm helmit-ha # @HELP run all MHO integration tests locally
 
-onos-kpimon-docker: # @HELP build onos-kpimon Docker image
-onos-kpimon-docker:
+target-docker: # @HELP build target Docker image
+target-docker:
 	@go mod vendor
-	docker build . -f build/onos-kpimon/Dockerfile \
-		-t khusdran/onos-kpimon:${ONOS_KPIMON_VERSION}
+	docker build . -f build/${TARGET}/Dockerfile \
+		-t ${DOCKER_REPOSITORY}${TARGET}:${TARGET_VERSION}
 	@rm -rf vendor
 
 images: # @HELP build all Docker images
-images: build onos-kpimon-docker
+images: build target-docker
 
 docker-push:
-	docker push ${DOCKER_REPOSITORY}onos-kpimon:${DOCKER_TAG}
+	docker push ${DOCKER_REPOSITORY}${TARGET}:${DOCKER_TAG}
 
 kind: # @HELP build Docker images and add them to the currently configured kind cluster
 kind: images
 	@if [ "`kind get clusters`" = '' ]; then echo "no kind cluster found" && exit 1; fi
-	kind load docker-image onosproject/onos-kpimon:${ONOS_KPIMON_VERSION}
+	kind load docker-image onosproject/${TARGET}:${TARGET_VERSION}
 
 all: build images
 
 publish: # @HELP publish version on github and dockerhub
-	./build/build-tools/publish-version ${VERSION} onosproject/onos-kpimon
+	./build/build-tools/publish-version ${VERSION} onosproject/${TARGET}
 
 #jenkins-publish: jenkins-tools # @HELP Jenkins calls this to publish artifacts
 #	./build/bin/push-images
 #	./build/build-tools/release-merge-commit
 
 clean:: # @HELP remove all the build artifacts
-	rm -rf ./build/_output ./vendor ./cmd/onos-kpimon/onos-kpimon ./cmd/onos/onos
-	go clean -testcache github.com/onosproject/onos-kpimon/...
+	rm -rf ./build/_output ./vendor ./cmd/${TARGET}/${TARGET} ./cmd/onos/onos
+	go clean -testcache github.com/onosproject/${TARGET}/...

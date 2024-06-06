@@ -13,7 +13,6 @@ on:
 jobs:
   push-images:  
     runs-on: ubuntu-latest
-    needs: tag-github
     if: github.repository_owner == 'khu-mcl'  
     env:
       REGISTRY: docker.io
