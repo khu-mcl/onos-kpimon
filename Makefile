@@ -19,10 +19,10 @@ build:
 build-tools:=$(shell if [ ! -d "./build/build-tools" ]; then cd build && git clone https://github.com/onosproject/build-tools.git; fi)
 include ./build/build-tools/make/onf-common.mk
 
-#test: # @HELP run the unit tests and source code validation
-#test: build deps linters license
-#	go test -race github.com/onosproject/${TARGET}/pkg/...
-#	go test -race github.com/onosproject/${TARGET}/cmd/...
+test: # @HELP run the unit tests and source code validation
+test: build deps linters license
+	go test -race github.com/onosproject/${TARGET}/pkg/...
+	go test -race github.com/onosproject/${TARGET}/cmd/...
 
 #jenkins-test:  # @HELP run the unit tests and source code validation producing a junit style report for Jenkins
 #jenkins-test: deps license linters
