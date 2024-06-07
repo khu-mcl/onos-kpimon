@@ -26,7 +26,7 @@ test: build deps linters license
 
 #jenkins-test:  # @HELP run the unit tests and source code validation producing a junit style report for Jenkins
 #jenkins-test: deps license linters
-	TEST_PACKAGES=github.com/onosproject/onos-kpimon/... ./build/build-tools/build/jenkins/make-unit
+#	TEST_PACKAGES=github.com/onosproject/onos-kpimon/... ./build/build-tools/build/jenkins/make-unit
 
 buflint: #@HELP run the "buf check lint" command on the proto files in 'api'
 	docker run -it -v `pwd`:/go/src/github.com/onosproject/onos-kpimon \
