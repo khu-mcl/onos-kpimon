@@ -8,7 +8,8 @@ export GO111MODULE=on
 .PHONY: build
 
 TARGET := onos-kpimon
-TARGET_VERSION := ${DOCKER_TAG}
+DOCKER_TAG ?= latest
+#TARGET_VERSION := ${DOCKER_TAG}
 ONOS_PROTOC_VERSION := v0.6.6
 BUF_VERSION := 0.27.1
 
@@ -52,7 +53,7 @@ docker-build: # @HELP build target Docker image
 docker-build:
 	@go mod vendor
 	docker build . -f build/${TARGET}/Dockerfile \
-		-t ${DOCKER_REPOSITORY}${TARGET}:${TARGET_VERSION}
+		-t ${DOCKER_REPOSITORY}${TARGET}:${DOCKER_TAG}
 	@rm -rf vendor
 
 images: # @HELP build all Docker images
@@ -64,7 +65,7 @@ docker-push:
 kind: # @HELP build Docker images and add them to the currently configured kind cluster
 kind: images
 	@if [ "`kind get clusters`" = '' ]; then echo "no kind cluster found" && exit 1; fi
-	kind load docker-image onosproject/${TARGET}:${TARGET_VERSION}
+	kind load docker-image onosproject/${TARGET}:${DOCKER_TAG}
 
 all: build images
 
