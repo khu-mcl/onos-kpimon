@@ -50,8 +50,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Build Docker image
-        #env:
-        #  DOCKER_TAG: latest
         run: |
           make images
 

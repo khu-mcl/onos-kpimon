@@ -8,8 +8,7 @@ export GO111MODULE=on
 .PHONY: build
 
 TARGET := onos-kpimon
-DOCKER_TAG ?= latest
-#TARGET_VERSION := ${DOCKER_TAG}
+DOCKER_TAG ?= latest # If the DOCKER_TAG variable is not assigned a value from the parent files (master.yml, push.yml), it defaults to 'latest'.
 ONOS_PROTOC_VERSION := v0.6.6
 BUF_VERSION := 0.27.1
 
