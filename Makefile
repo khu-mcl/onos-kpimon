@@ -8,6 +8,7 @@ export GO111MODULE=on
 .PHONY: build
 
 TARGET := onos-kpimon
+TARGET_TEST := onos-kpimon-test
 DOCKER_TAG ?= latest # If the DOCKER_TAG variable is not assigned a value from the parent files (master.yml, push.yml), it defaults to 'latest'.
 ONOS_PROTOC_VERSION := v0.6.6
 BUF_VERSION := 0.27.1
@@ -26,25 +27,25 @@ test: build deps linters license
 
 #jenkins-test:  # @HELP run the unit tests and source code validation producing a junit style report for Jenkins
 #jenkins-test: deps license linters
-#	TEST_PACKAGES=github.com/onosproject/onos-kpimon/... ./build/build-tools/build/jenkins/make-unit
+#	TEST_PACKAGES=github.com/onosproject/${TARGET}/... ./build/build-tools/build/jenkins/make-unit
 
 buflint: #@HELP run the "buf check lint" command on the proto files in 'api'
-	docker run -it -v `pwd`:/go/src/github.com/onosproject/onos-kpimon \
-		-w /go/src/github.com/onosproject/onos-kpimon/api \
+	docker run -it -v `pwd`:/go/src/github.com/onosproject/${TARGET} \
+		-w /go/src/github.com/onosproject/${TARGET}/api \
 		bufbuild/buf:${BUF_VERSION} check lint
 
 protos: # @HELP compile the protobuf files (using protoc-go Docker)
 protos:
-	docker run -it -v `pwd`:/go/src/github.com/onosproject/onos-kpimon \
-		-w /go/src/github.com/onosproject/onos-kpimon \
+	docker run -it -v `pwd`:/go/src/github.com/onosproject/${TARGET} \
+		-w /go/src/github.com/onosproject/${TARGET} \
 		--entrypoint build/bin/compile-protos.sh \
 		onosproject/protoc-go:${ONOS_PROTOC_VERSION}
 
 helmit-kpm: integration-test-namespace # @HELP run MHO tests locally
-	helmit test -n test ./cmd/onos-kpimon-test --timeout 30m --no-teardown --suite kpm
+	helmit test -n test ./cmd/${TARGET_TEST} --timeout 30m --no-teardown --suite kpm
 
 helmit-ha: integration-test-namespace # @HELP run MHO HA tests locally
-	helmit test -n test ./cmd/onos-kpimon-test --timeout 30m --no-teardown --suite ha
+	helmit test -n test ./cmd/${TARGET_TEST} --timeout 30m --no-teardown --suite ha
 
 integration-tests: helmit-kpm helmit-ha # @HELP run all MHO integration tests locally
 
