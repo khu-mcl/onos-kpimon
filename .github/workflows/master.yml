@@ -39,8 +39,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Unit tests
-        run: |
-          make test 
+        run: make test 
           
   docker-build:
     runs-on: ubuntu-latest
@@ -50,8 +49,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Build Docker image
-        run: |
-          make images
+        run: make images
 
   license-check:
     runs-on: ubuntu-latest
