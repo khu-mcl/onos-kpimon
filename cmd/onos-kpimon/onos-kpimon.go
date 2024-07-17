@@ -35,7 +35,7 @@ func main() {
 	}
 
 	log.Info("Starting onos-kpimon")
-	log.Info("VERSION TEST")
+	log.Info("VERSION")
 
 	cfg := manager.Config{
 		CAPath:      *caPath,
